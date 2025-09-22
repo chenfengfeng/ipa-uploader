@@ -1,86 +1,57 @@
 # 工作流名称
-name: Upload IPA to App Store
+name: Upload IPA to App Store (via Fastfile)
 
-# 触发条件：`workflow_dispatch` 意味着可以手动触发
+# 触发条件
 on:
   workflow_dispatch:
     inputs:
-      # 定义一个输入框，让用户在运行时指定要上传哪个版本
       release_tag:
-        description: '要上传的 Release 标签 (包名)'
+        description: '要上传的 Release 标签'
         required: true
         type: string
 
-# 定义具体的工作任务
+# 工作任务
 jobs:
   upload:
-    # 指定运行环境为最新的 macOS
     runs-on: macos-latest
-
-    # 定义任务中的各个步骤
     steps:
-      # 检出仓库代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 安装 GitHub CLI 和 jq (用于解析 JSON)
       - name: Install Dependencies
         run: |
           brew install gh
           brew install jq
 
-      # 核心改动：获取下载链接并使用 curl 下载
       - name: Download IPA via URL
         run: |
-          echo "Fetching download URL for tag: ${{ github.event.inputs.release_tag }}"
-          # 1. 使用 gh 命令获取包含下载链接的 JSON 信息
-          # 2. 使用 jq 工具从 JSON 中提取出第一个附件的 url
           DOWNLOAD_URL=$(gh release view ${{ github.event.inputs.release_tag }} --json assets | jq -r '.assets[] | select(.name | endswith(".ipa")) | .url')
-          
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then
-            echo "错误：无法获取到 .ipa 文件的下载链接。请检查 Release 是否存在以及是否包含 .ipa 附件。"
+            echo "错误：无法获取到 .ipa 文件的下载链接。"
             exit 1
           fi
-          
-          echo "Download URL found: $DOWNLOAD_URL"
-          
-          # 3. 使用 curl 命令，根据链接下载文件，并重命名为 app.ipa
-          #    -L: 跟随重定向, -o: 指定输出文件名
           curl -L -o app.ipa "$DOWNLOAD_URL"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # 您建议的优化：立刻检查 IPA 文件是否存在，如果不存在则直接失败
-      - name: Check if IPA was downloaded
-        run: |
-          if ! ls *.ipa > /dev/null 2>&1; then
-            echo "致命错误：IPA 文件下载失败或目录中不存在 .ipa 文件！"
-            exit 1
-          else
-            echo "成功找到 IPA 文件，继续执行上传步骤。"
-            ls -lh *.ipa # 使用 -lh 参数让人类可读的方式显示文件大小
-          fi
-      
-      # 设置 Ruby 环境
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
 
-      # 安装 Fastlane
       - name: Install Fastlane
         run: gem install fastlane
-
-      # 创建 API Key 临时文件
+      
+      # 已修正：在虚拟机的 HOME 目录下创建 .p8 文件
       - name: Create API Key file
         run: |
-          mkdir -p $HOME/private_keys
-          run: echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > fastlane/AuthKey.p8
+          mkdir -p ~/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/private_keys/AuthKey.p8
 
-      # 核心步骤：使用环境变量 + Fastlane 上传
+      # 最后一步：执行 Fastlane
       - name: Upload to App Store Connect
         env:
-          # 只傳遞 ID 資訊，路徑由 Fastfile 自己尋找
+          # 传递 ID 信息
           ASC_KEY_ID: ${{ secrets.KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ISSUER_ID }}
         run: fastlane upload

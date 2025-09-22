@@ -11,8 +11,8 @@ platform :ios do
     # 寻找 .ipa 檔案
     ipa_path = Dir.glob("*.ipa").first
     
-    # ⭐️ 关键改动：使用极其简单可靠的相对路径寻找 .p8 文件
-    key_filepath = "./fastlane/AuthKey.p8"
+    # 寻找 .p8 密鑰檔案（使用绝对路径）
+    key_filepath = File.expand_path("~/private_keys/AuthKey.p8")
     
     # 从环境变量中读取 ID 信息
     api_key = {

@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: '要上传的 Release 标签 (例如: my-app-v1.2)'
+        description: '要上传的 Release 标签 (包名)'
         required: true
         type: string
 
@@ -21,35 +21,37 @@ jobs:
       - name: Install GitHub CLI
         run: brew install gh
 
+      # ⭐️ 新增的终极诊断步骤：在下载前，先列出该 Release 的附件信息
+      - name: "Debug: List assets for the tag"
+        run: |
+          echo "Checking assets for tag: ${{ github.event.inputs.release_tag }}"
+          gh release view ${{ github.event.inputs.release_tag }} --json assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # 从 GitHub Release 下载 .ipa 文件
       - name: Download IPA from Release
         run: gh release download ${{ github.event.inputs.release_tag }} --pattern '*.ipa'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # ⭐️ 新增的诊断步骤：列出所有文件，检查 .ipa 是否存在
+      # 验证文件是否存在
       - name: Verify downloaded files
         run: |
           echo "Verifying contents of the current directory..."
           ls -R
 
-      # 设置 Ruby 环境
+      # ... 后续步骤保持不变 ...
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.1'
-
-      # 安装 Fastlane
       - name: Install Fastlane
         run: gem install fastlane
-
-      # 创建 API Key 临时文件
       - name: Create API Key file
         run: |
           mkdir -p $HOME/private_keys
           echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > $HOME/private_keys/AuthKey.p8
-
-      # 核心步骤：使用环境变量 + Fastlane 上传
       - name: Upload to App Store Connect with Fastlane
         env:
           APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.KEY_ID }}

@@ -33,11 +33,17 @@ jobs:
         with:
           ruby-version: '3.1'
 
-      # ⭐️ 新增的步骤：安装 Fastlane
+      # 安装 Fastlane
       - name: Install Fastlane
         run: gem install fastlane
 
-      # 核心步骤：使用 Fastlane 上传
+      # ⭐️ 新增步骤：将 API Key 内容写入临时文件
+      - name: Create API Key file
+        run: |
+          mkdir -p $HOME/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > $HOME/private_keys/AuthKey.p8
+
+      # 核心步骤：使用 Fastlane 和 API Key 文件路径进行上传
       - name: Upload to App Store Connect with Fastlane
         run: |
           # 寻找 .ipa 文件路径
@@ -47,10 +53,8 @@ jobs:
             exit 1
           fi
 
-          # 直接调用 fastlane 的 `upload_to_app_store` action
-          # 它会自动处理认证和上传的所有细节
+          # 调用 fastlane，这次使用 api_key_path 指向我们创建的密钥文件
           fastlane run upload_to_app_store \
-            api_key_path: "-" \
-            api_key: '${{ secrets.APP_STORE_CONNECT_API_KEY }}' \
+            api_key_path: "$HOME/private_keys/AuthKey.p8" \
             api_issuer: '${{ secrets.ISSUER_ID }}' \
             ipa: "$IPA_PATH"

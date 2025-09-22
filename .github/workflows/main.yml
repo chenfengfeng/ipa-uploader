@@ -1,13 +1,13 @@
 # 工作流名称
 name: Upload IPA to App Store (via Fastlane)
 
-于:
+on:
   workflow_dispatch:
     inputs:
       release_tag:
         description: '要上传的 Release 标签 (例如: my-app-v1.2)'
         required: true
-        输入: string
+        type: string
 
 jobs:
   upload:

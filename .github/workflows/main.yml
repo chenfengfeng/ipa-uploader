@@ -1,57 +1,73 @@
-# 工作流名稱
-name: Upload IPA to App Store
+# 工作流名称
+name: 上传 IPA 到 App Store
 
-# 觸發條件
+# 触发条件
 on:
   workflow_dispatch:
     inputs:
+      # 定义一个输入框，让用户在运行时指定要上传哪个版本
       release_tag:
-        description: '要上傳的 Release 標籤'
+        description: '要上传的 Release 标签'
         required: true
         type: string
 
-# 工作任務
+# 工作任务
 jobs:
   upload:
+    # 指定运行环境为最新的 macOS
     runs-on: macos-latest
+
+    # 定义任务中的各个步骤
     steps:
-      - name: Checkout repository
+      # 步骤 1：检出仓库代码，以便工作流可以访问它
+      - name: 检出仓库代码
         uses: actions/checkout@v4
 
-      - name: Install Dependencies
+      # 步骤 2：安装工作流需要的命令行工具
+      - name: 安装依赖工具
         run: brew install gh
 
-      - name: Download IPA via URL
+      # 步骤 3：从 Release 下载 IPA 文件
+      - name: 下载 IPA 文件
         run: |
+          # 从用户输入的标签（tag）中，找到 .ipa 文件的直接下载链接
           DOWNLOAD_URL=$(gh release view ${{ github.event.inputs.release_tag }} --json assets | jq -r '.assets[] | select(.name | endswith(".ipa")) | .url')
+          
+          # 检查是否成功获取到链接
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" == "null" ]; then
-            echo "錯誤：無法獲取到 .ipa 檔案的下載連結。"
+            echo "错误：无法获取到 .ipa 文件的下载链接。请检查 Release 是否存在以及是否包含 .ipa 附件。"
             exit 1
           fi
+          
+          # 使用 curl 工具下载文件，并命名为 app.ipa
           curl -L -o app.ipa "$DOWNLOAD_URL"
         env:
+          # GITHUB_TOKEN 是由 GitHub 自动提供的，用于授权访问仓库
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Verify downloaded files
+      # 步骤 4：验证 IPA 文件是否已成功下载
+      - name: 验证 IPA 文件是否下载成功
         run: ls -lh *.ipa
 
-      - name: Create API Key file
+      # 步骤 5：创建 API 密钥文件
+      - name: 创建 API 密钥文件
+        # 关键修正：创建符合苹果官方命名规则（AuthKey_KEYID.p8）的密钥文件
         run: |
           mkdir -p ~/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/private_keys/AuthKey.p8
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/private_keys/AuthKey_${{ secrets.KEY_ID }}.p8
 
-      # 核心步驟：使用蘋果官方的 altool 進行上傳
-      - name: Upload IPA to App Store Connect
+      # 步骤 6：上传 IPA 到 App Store Connect
+      - name: 上传 IPA 到 App Store Connect
         run: |
-          # 尋找 .ipa 檔案的絕對路徑
+          # 寻找 .ipa 文件的绝对路径
           IPA_PATH=$(find "$PWD" -name "*.ipa" | head -n 1)
 
-          # 使用 xcrun altool 指令進行上傳
+          # 使用苹果官方的 altool 工具进行上传
           xcrun altool --upload-app \
             --file "$IPA_PATH" \
             --type ios \
             --apiKey ${{ secrets.KEY_ID }} \
             --apiIssuer ${{ secrets.ISSUER_ID }}
         env:
-          # 將密鑰檔案的路徑設置為 altool 的標準環境變數
+          # 将密钥文件所在的目录路径，设置为 altool 的标准环境变量
           API_PRIVATE_KEYS_DIR: "~/private_keys"

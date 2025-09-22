@@ -1,0 +1,21 @@
+# 這是一個 Fastfile，使用 Ruby 語法
+
+# 預設平台為 iOS
+default_platform(:ios)
+
+platform :ios do
+  # 定義一個名為 'upload' 的通道 (lane)
+  desc "Upload IPA to App Store Connect"
+  lane :upload do
+    
+    # 在當前目錄中尋找 .ipa 檔案的路徑
+    ipa_path = Dir.glob("*.ipa").first
+    
+    # 執行上傳動作
+    # 它會自動從我們設定的環境變數中讀取 API 密鑰資訊
+    upload_to_app_store(
+      ipa: ipa_path
+    )
+    
+  end
+end

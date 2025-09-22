@@ -8,12 +8,15 @@ platform :ios do
   desc "Upload IPA to App Store Connect"
   lane :upload do
     
+    # ⭐️ 關鍵改動：從環境變數中讀取 API Key 資訊，並組合成一個 hash
+    api_key = AppStoreConnectAPIKey.from_env
+    
     # 在當前目錄中尋找 .ipa 檔案的路徑
     ipa_path = Dir.glob("*.ipa").first
     
-    # 執行上傳動作
-    # 它會自動從我們設定的環境變數中讀取 API 密鑰資訊
+    # 執行上傳動作，並明確傳入 api_key 參數
     upload_to_app_store(
+      api_key: api_key,
       ipa: ipa_path
     )
     

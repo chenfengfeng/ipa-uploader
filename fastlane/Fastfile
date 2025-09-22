@@ -1,27 +1,27 @@
-# 這一個 Fastfile，使用 Ruby 語法
+# 这一个 Fastfile，使用 Ruby 语法
 
-# 預設平台為 iOS
+# 预设平台为 iOS
 default_platform(:ios)
 
 platform :ios do
-  # 定義一個名為 'upload' 的通道 (lane)
+  # 定义一个名为 'upload' 的通道 (lane)
   desc "Upload IPA to App Store Connect"
   lane :upload do
     
-    # ⭐️ 關鍵改動：讓 Fastfile 自己尋找所有需要的檔案路徑
-    # 尋找 .ipa 檔案
+    # 寻找 .ipa 檔案
     ipa_path = Dir.glob("*.ipa").first
-    # 尋找 .p8 密鑰檔案（使用絕對路徑）
-    key_filepath = File.expand_path("~/private_keys/AuthKey.p8")
     
-    # 從環境變數中讀取 ID 資訊
+    # ⭐️ 关键改动：使用极其简单可靠的相对路径寻找 .p8 文件
+    key_filepath = "./fastlane/AuthKey.p8"
+    
+    # 从环境变量中读取 ID 信息
     api_key = {
       key_id: ENV["ASC_KEY_ID"],
       issuer_id: ENV["ASC_ISSUER_ID"],
-      key_filepath: key_filepath # 使用我們自己找到的路徑
+      key_filepath: key_filepath # 使用我们自己找到的路径
     }
     
-    # 執行上傳動作
+    # 执行上传动作
     upload_to_app_store(
       api_key: api_key,
       ipa: ipa_path

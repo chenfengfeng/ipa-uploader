@@ -37,14 +37,20 @@ jobs:
       - name: Install Fastlane
         run: gem install fastlane
 
-      # ⭐️ 新增步骤：将 API Key 内容写入临时文件
+      # 创建 API Key 临时文件
       - name: Create API Key file
         run: |
           mkdir -p $HOME/private_keys
           echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > $HOME/private_keys/AuthKey.p8
 
-      # 核心步骤：使用 Fastlane 和 API Key 文件路径进行上传
+      # 核心步骤：使用环境变量 + Fastlane 上传
       - name: Upload to App Store Connect with Fastlane
+        # ⭐️ 关键改动：在这里定义环境变量
+        env:
+          # Fastlane 会自动读取这些特定名称的环境变量
+          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: "$HOME/private_keys/AuthKey.p8"
         run: |
           # 寻找 .ipa 文件路径
           IPA_PATH=$(find . -name "*.ipa" | head -n 1)
@@ -53,8 +59,5 @@ jobs:
             exit 1
           fi
 
-          # 调用 fastlane，这次使用 api_key_path 指向我们创建的密钥文件
-          fastlane run upload_to_app_store \
-            api_key_path: "$HOME/private_keys/AuthKey.p8" \
-            api_issuer: '${{ secrets.ISSUER_ID }}' \
-            ipa: "$IPA_PATH"
+          # ⭐️ 命令变得极其简单，Fastlane 会自动从环境中寻找认证信息
+          fastlane run upload_to_app_store ipa: "$IPA_PATH"

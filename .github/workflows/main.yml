@@ -84,10 +84,8 @@ jobs:
           APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_KEY_FILEPATH: "$HOME/private_keys/AuthKey.p8"
         run: |
-          IPA_PATH=$(find . -name "*.ipa" | head -n 1)
-          # 上一步已经保证了文件存在，所以这里的 if 判断只是一个双重保险
-          if [ -z "$IPA_PATH" ]; then
-            echo "错误：脚本在当前目录中没有找到 .ipa 文件。"
-            exit 1
-          fi
-          fastlane run upload_to_app_store ipa: "$IPA_PATH"
+          echo "Final check for IPA file before uploading:"
+          ls -lh *.ipa
+
+          # 直接将 `find` 命令的结果作为参数传递，不再使用中间变量
+          fastlane run upload_to_app_store ipa: "$(find . -name "*.ipa" | head -n 1)"

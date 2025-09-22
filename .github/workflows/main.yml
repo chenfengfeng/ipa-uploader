@@ -1,25 +1,19 @@
-# 工作流名称，会显示在 Actions 页面
-name: Upload IPA to App Store
+# 工作流名称
+name: Upload IPA to App Store (via Fastlane)
 
-# 触发条件：`workflow_dispatch` 意味着可以手动触发
-on:
+于:
   workflow_dispatch:
     inputs:
-      # 定义一个输入框，让用户在运行时指定要上传哪个版本
       release_tag:
         description: '要上传的 Release 标签 (例如: my-app-v1.2)'
         required: true
-        type: string
+        输入: string
 
-# 定义具体的工作任务
 jobs:
   upload:
-    # 指定运行环境为最新的 macOS
     runs-on: macos-latest
-
-    # 定义任务中的各个步骤
     steps:
-      # 检出仓库代码，为 gh 命令提供上下文
+      # 检出仓库代码
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -32,39 +26,28 @@ jobs:
         run: gh release download ${{ github.event.inputs.release_tag }} --pattern '*.ipa'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      # 设置 Ruby 和 Fastlane 环境
+      - name: Set up Ruby and Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.1' # 指定 Ruby 版本
+          bundler-cache: true # 缓存 gem 依赖
 
-      # 创建 .p8 密钥文件
-      - name: Create API Key file
+      # 核心步骤：使用 Fastlane 上传
+      - name: Upload to App Store Connect with Fastlane
         run: |
-          mkdir -p $HOME/private_keys
-          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > $HOME/private_keys/AuthKey.p8
-
-      # 使用苹果官方的 Transporter 工具上传 .ipa
-      - name: Upload IPA to App Store Connect (DEBUG MODE)
-        run: |
-          # 开启详细日志模式，会打印出所有执行的命令
-          set -x
-          
-          # 打印我们从 Secrets 中读取到的值，用于验证
-          echo "--> DEBUG: Using Key ID: ${{ secrets.KEY_ID }}"
-          echo "--> DEBUG: Using Issuer ID: ${{ secrets.ISSUER_ID }}"
-
-          # 寻找当前目录下唯一的 .ipa 文件
+          # 寻找 .ipa 文件路径
           IPA_PATH=$(find . -name "*.ipa" | head -n 1)
-          
-          # 检查是否找到了 .ipa 文件
           if [ -z "$IPA_PATH" ]; then
             echo "错误：在 Release 中没有找到 .ipa 文件。"
             exit 1
           fi
-          
-          echo "准备上传位于: $IPA_PATH 的文件"
 
-          # 使用 xcrun altool 命令进行上传
-          # 将 ~ 替换为 $HOME，这是在脚本中更稳妥的写法
-          xcrun altool --upload-app \
-                       -f "$IPA_PATH" \
-                       -t ios \
-                       --api-key "${{ secrets.KEY_ID }}" \
-                       --api-issuer "${{ secrets.ISSUER_ID }}" \
-                       --auth-key "$HOME/private_keys/AuthKey.p8"
+          # 直接调用 fastlane 的 `upload_to_app_store` action
+          # 它会自动处理认证和上传的所有细节
+          fastlane run upload_to_app_store \
+            api_key_path: "-" \
+            api_key: '${{ secrets.APP_STORE_CONNECT_API_KEY }}' \
+            api_issuer: '${{ secrets.ISSUER_ID }}' \
+            ipa: "$IPA_PATH"

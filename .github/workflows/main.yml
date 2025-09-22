@@ -1,5 +1,5 @@
 # 工作流名称
-name: Upload IPA to App Store (via Fastlane)
+name: Upload IPA to App Store
 
 on:
   workflow_dispatch:
@@ -27,12 +27,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
-      # 设置 Ruby 和 Fastlane 环境
-      - name: Set up Ruby and Fastlane
+      # 设置 Ruby 环境
+      - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: '3.1' # 指定 Ruby 版本
-          bundler-cache: true # 缓存 gem 依赖
+          ruby-version: '3.1'
+
+      # ⭐️ 新增的步骤：安装 Fastlane
+      - name: Install Fastlane
+        run: gem install fastlane
 
       # 核心步骤：使用 Fastlane 上传
       - name: Upload to App Store Connect with Fastlane

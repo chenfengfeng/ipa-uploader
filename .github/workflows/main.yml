@@ -80,7 +80,9 @@ jobs:
       # 核心步骤：使用环境变量 + Fastlane 上传
       - name: Upload to App Store Connect
         env:
-          APP_STORE_CONNECT_API_KEY_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
-          APP_STORE_CONNECT_API_KEY_KEY_ID: ${{ secrets.KEY_ID }}
-          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.ISSUER_ID }}
+          # 将 Key ID 和 Issuer ID 作为环境变量传入
+          ASC_KEY_ID: ${{ secrets.KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ISSUER_ID }}
+          # 将 .p8 文件的【路径】作为环境变量传入
+          ASC_API_KEY_PATH: "$HOME/private_keys/AuthKey.p8"
         run: fastlane upload

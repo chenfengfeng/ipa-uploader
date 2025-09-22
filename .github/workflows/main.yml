@@ -1,0 +1,64 @@
+# 工作流名称，会显示在 Actions 页面
+name: Upload IPA to App Store
+
+# 触发条件：`workflow_dispatch` 意味着可以手动触发
+on:
+  workflow_dispatch:
+    inputs:
+      # 定义一个输入框，让用户在运行时指定要上传哪个版本
+      release_tag:
+        description: '要上传的 Release 标签 (例如: my-app-v1.2)'
+        required: true
+        type: string
+
+# 定义具体的工作任务
+jobs:
+  upload:
+    # 指定运行环境为最新的 macOS
+    runs-on: macos-latest
+
+    # 定义任务中的各个步骤
+    steps:
+      # 第一步：安装 GitHub CLI 工具，用于和 GitHub API 交互
+      # brew 是 macOS 上的包管理器
+      - name: Install GitHub CLI
+        run: brew install gh
+
+      # 第二步：从 GitHub Release 下载 .ipa 文件
+      - name: Download IPA from Release
+        # 使用 gh release download 命令
+        # ${{ github.event.inputs.release_tag }} 会自动获取用户输入的标签名
+        # --pattern '*.ipa' 只下载 .ipa 文件
+        run: gh release download ${{ github.event.inputs.release_tag }} --pattern '*.ipa'
+        env:
+          # GITHUB_TOKEN 是 GitHub Actions 自动提供的，用于认证
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 第三步：创建 .p8 密钥文件，以便 Transporter 使用
+      - name: Create API Key file
+        # 从我们之前设置的 Secrets 中读取密钥内容，并写入一个临时文件中
+        run: |
+          mkdir -p ~/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_KEY }}" > ~/private_keys/AuthKey.p8
+
+      # 第四步：使用苹果官方的 Transporter 工具上传 .ipa
+      - name: Upload IPA to App Store Connect
+        run: |
+          # 寻找当前目录下唯一的 .ipa 文件
+          IPA_PATH=$(find . -name "*.ipa" | head -n 1)
+          
+          # 检查是否找到了 .ipa 文件
+          if [ -z "$IPA_PATH" ]; then
+            echo "错误：在 Release 中没有找到 .ipa 文件。"
+            exit 1
+          fi
+          
+          echo "准备上传位于: $IPA_PATH 的文件"
+
+          # 使用 xcrun altool 命令进行上传
+          xcrun altool --upload-app \
+                       -f "$IPA_PATH" \
+                       -t ios \
+                       --api-key "${{ secrets.KEY_ID }}" \
+                       --api-issuer "${{ secrets.ISSUER_ID }}" \
+                       --auth-key ~/private_keys/AuthKey.p8
